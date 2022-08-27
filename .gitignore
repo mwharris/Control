@@ -78,3 +78,5 @@ DerivedDataCache/*
 # Other
 Content/StarterContent
 *.opendb
+
+Plugins/*/RiderLink/
