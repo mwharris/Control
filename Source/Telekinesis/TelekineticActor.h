@@ -32,6 +32,17 @@ private:
 	float LiftDurationSeconds = 0.5f;
 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category="Lift", meta=(AllowPrivateAccess = "true"))
 	float LiftHeight = 150.f;
+	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category="Lift", meta=(AllowPrivateAccess = "true"))
+	FVector LiftAngularImpulseDirection = FVector(1.f, 1.f, 1.f);
+	/** Minimum angular impulse applied to lifted objects so they aren't static */ 
+	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category="Lift", meta=(AllowPrivateAccess = "true"))
+	float LiftAngularImpulseMinStrength = 400.f;
+	/** Maximum angular impulse applied to lifted objects so they aren't static */ 
+	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category="Lift", meta=(AllowPrivateAccess = "true"))
+	float LiftAngularImpulseMaxStrength = 800.f;
+	/** The percentage of our Lift phase at which we'll start the Reach phase for a smooth transition */ 
+	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category="Lift", meta=(AllowPrivateAccess = "true"))
+	float LiftReachTransitionPercent = 0.8f;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category="Reach", meta=(AllowPrivateAccess = "true"))
 	float ReachSpeedMultiplier = 2.f;
@@ -43,23 +54,42 @@ private:
 	float MassMultiplierMinRange = 1.f;
 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category="Reach", meta=(AllowPrivateAccess = "true"))
 	float MassMultiplierMaxRange = 5.f;
-
-	class ATelekinesisCharacter* PlayerCharacter = nullptr;
-	ETelekinesisStates TelekinesisState = ETelekinesisStates::Default;
 	
-	// Variables for Lift timer
+	/** Min frame time for object to randomly Jitter */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category="Jitter", meta=(AllowPrivateAccess = "true"))
+	float JitterFrameTimeRangeMin = 10.f;
+	/** Max frame time for object to randomly Jitter */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category="Jitter", meta=(AllowPrivateAccess = "true"))
+	float JitterFrameTimeRangeMax = 30.f;
+	/** Minimum strength of a Jitter */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category="Jitter", meta=(AllowPrivateAccess = "true"))
+	float JitterStrengthMinMultiplier = 100.f;
+	/** Maximum strength of a Jitter */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category="Jitter", meta=(AllowPrivateAccess = "true"))
+	float JitterStrengthMaxMultiplier = 300.f;
+	
+	// Variables for Lift
 	FTimerHandle LiftTimerHandle;
 	float LiftStartTimeSeconds = 0.f;
 	FVector LiftStart = FVector::ZeroVector;
 	FVector LiftEnd = FVector::ZeroVector;
 
-	// Variables for Reach timer
+	// Variables for Reach
 	FTimerHandle ReachTimerHandle;
+
+	// Variables for Jitter
+	int32 JitterFrameTime = 0;
+	int32 JitterCounter = 0;
+
+	// Other variables
+	class ATelekinesisCharacter* PlayerCharacter = nullptr;
+	ETelekinesisStates TelekinesisState = ETelekinesisStates::Default;
 
 	void StartLift();
 	void Lift();
 	void StartReach();
-	void ReachCharacter() const;
+	void ReachCharacter();
+	void Jitter();
 	float GetLiftEndTimeSeconds() const;
 	
 };
