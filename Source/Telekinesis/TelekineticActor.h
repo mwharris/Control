@@ -45,7 +45,9 @@ private:
 	float LiftReachTransitionPercent = 0.8f;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category="Reach", meta=(AllowPrivateAccess = "true"))
-	float ReachSpeedMultiplier = 2.f;
+	float PullSpeedMultiplier = 1.f;
+	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category="Reach", meta=(AllowPrivateAccess = "true"))
+	float PushSpeedMultiplier = 800.f;
 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category="Reach", meta=(AllowPrivateAccess = "true"))
 	float MassMinRange = 50.f;
 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category="Reach", meta=(AllowPrivateAccess = "true"))
@@ -76,6 +78,7 @@ private:
 
 	// Variables for Reach
 	FTimerHandle ReachTimerHandle;
+	FVector ReachTarget = FVector::ZeroVector;
 
 	// Variables for Jitter
 	int32 JitterFrameTime = 0;
@@ -87,8 +90,12 @@ private:
 
 	void StartLift();
 	void Lift();
-	void StartReach();
+
+	void StartReach(bool bReachCharacter);
 	void ReachCharacter();
+	void ReachPoint();
+	void ReachLocation(const FVector& Target, float ReachSpeedMultiplier, bool bConstantSpeed);
+	
 	void Jitter();
 	float GetLiftEndTimeSeconds() const;
 	

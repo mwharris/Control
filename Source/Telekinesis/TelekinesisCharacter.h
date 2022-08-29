@@ -98,10 +98,17 @@ private:
 	float TelekinesisDistance = 5000.f;
 	/** The Actor we are currently using Telekinesis on  */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Telekinesis", meta=(AllowPrivateAccess=true))
-	class ATelekineticActor* TelekineticActor = nullptr;
+	class ATelekineticActor* TelekineticTarget = nullptr;
+	/** The Actor we are currently using Telekinesis on  */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Telekinesis", meta=(AllowPrivateAccess=true))
+	class ATelekineticActor* CurrTelekineticProp = nullptr;
+	/** The strength of our Push  */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Telekinesis", meta=(AllowPrivateAccess=true))
+	float PushTraceDistance = 20000.f;
 
 	/** Functions for setting up pulling and pushing objects */
 	void Push();
+	void PushTrace(FVector& ImpactPoint);
 	void Pull();
 
 	/** Helper function to add CameraOffsetRight and CameraOffsetUp to camera boom location */

@@ -19,20 +19,10 @@ void ATelekineticActor::BeginPlay()
 	Super::BeginPlay();
 }
 
-void ATelekineticActor::Highlight(bool bHighlight)
-{
-	TelekineticMesh->SetRenderCustomDepth(bHighlight);
-}
-
 void ATelekineticActor::Pull(ATelekinesisCharacter* InPlayerCharacter)
 {
 	PlayerCharacter = InPlayerCharacter;
 	StartLift();
-}
-
-void ATelekineticActor::Push(FVector Destination)
-{
-	// TODO: ...
 }
 
 void ATelekineticActor::StartLift()
@@ -56,7 +46,8 @@ void ATelekineticActor::Lift()
 	// Start Reach before we're fully done for a smoother transition between the two phases
 	if (Alpha >= LiftReachTransitionPercent && !ReachTimerHandle.IsValid())
 	{
-		StartReach();
+		// Reach our Player's TK Prop hold location
+		StartReach(true);
 	}
 	
 	// Finished, jump to end location
@@ -73,8 +64,30 @@ void ATelekineticActor::Lift()
 	}
 }
 
-void ATelekineticActor::StartReach()
+void ATelekineticActor::Push(FVector Destination)
 {
+	UKismetSystemLibrary::DrawDebugCircle(GetWorld(), Destination, 10.f);
+	TelekinesisState = ETelekinesisStates::Pushed;
+	// Stop our Lift timer if that's active
+	if (LiftTimerHandle.IsValid())
+	{
+		GetWorldTimerManager().ClearTimer(LiftTimerHandle);
+		LiftTimerHandle.Invalidate();
+	}
+	// If our Reach timer has already begun, reset it with a new target
+	if (ReachTimerHandle.IsValid())
+	{
+		GetWorldTimerManager().ClearTimer(ReachTimerHandle);
+		ReachTimerHandle.Invalidate();
+	}
+	// Call reach with the passed-in destination
+	ReachTarget = Destination;
+	StartReach(false);
+}
+
+void ATelekineticActor::StartReach(bool bReachCharacter)
+{
+	
 	TelekineticMesh->SetEnableGravity(false);
 	TelekineticMesh->SetLinearDamping(20.0f);
 	TelekinesisState = ETelekinesisStates::Pulled;
@@ -83,8 +96,15 @@ void ATelekineticActor::StartReach()
 	const float ImpulseStrength = UKismetMathLibrary::RandomFloatInRange(LiftAngularImpulseMinStrength, LiftAngularImpulseMaxStrength);
 	const FVector AngularImpulse = UKismetMathLibrary::RandomUnitVector() * ImpulseStrength;
 	TelekineticMesh->AddAngularImpulseInDegrees(AngularImpulse, NAME_None, true);
-	// Start pulling our object towards the player over time
-	GetWorldTimerManager().SetTimer(ReachTimerHandle, this, &ATelekineticActor::ReachCharacter, 0.016, true);
+	// Reach Character or Target depending on boolean
+	if (bReachCharacter)
+	{
+		GetWorldTimerManager().SetTimer(ReachTimerHandle, this, &ATelekineticActor::ReachCharacter, 0.016, true);
+	}
+	else
+	{
+		GetWorldTimerManager().SetTimer(ReachTimerHandle, this, &ATelekineticActor::ReachPoint, 0.016, true);
+	}
 }
 
 void ATelekineticActor::ReachCharacter()
@@ -93,8 +113,24 @@ void ATelekineticActor::ReachCharacter()
 	{
 		return;
 	}
-	// Get the direction we want to move, make sure we don't move too fast
-	FVector MoveDirection = PlayerCharacter->GetTelekineticPropLocation() - GetActorLocation();
+	ReachLocation(PlayerCharacter->GetTelekineticPropLocation(), PullSpeedMultiplier, false);
+}
+
+void ATelekineticActor::ReachPoint()
+{
+	ReachLocation(ReachTarget, PushSpeedMultiplier, true);
+}
+
+void ATelekineticActor::ReachLocation(const FVector& Location, float SpeedMultiplier, bool bConstantSpeed)
+{
+	// Get the direction we want to move
+	FVector MoveDirection = Location - GetActorLocation();
+	// Pull at a constant rate, not based on distance
+	if (bConstantSpeed)
+	{
+		MoveDirection = MoveDirection.GetSafeNormal();
+	}
+	// Make sure we don't pull/push too fast
 	MoveDirection = UKismetMathLibrary::ClampVectorSize(MoveDirection, 0.f, 1000.f);
 	// Lighter objects should move faster, heavier objects should move slower
 	MoveDirection *= UKismetMathLibrary::MapRangeClamped(
@@ -104,10 +140,15 @@ void ATelekineticActor::ReachCharacter()
 		MassMultiplierMaxRange,
 		MassMultiplierMinRange
 	);
-	// Add an impulse to our object to move it towards the player
+	// Add any additional speed multiplier we need
+	MoveDirection *= SpeedMultiplier;
+	// Add an impulse to our object to reach its destination
 	TelekineticMesh->AddImpulse(MoveDirection, NAME_None, true);
 	// Jitter the object periodically while it's held
-	Jitter();
+	if (TelekinesisState == ETelekinesisStates::Pulled)
+	{
+		Jitter();
+	}
 }
 
 void ATelekineticActor::Jitter()
@@ -121,6 +162,11 @@ void ATelekineticActor::Jitter()
 	JitterFrameTime = UKismetMathLibrary::RandomIntegerInRange(JitterFrameTimeRangeMin, JitterFrameTimeRangeMax);
 	const int32 Strength = UKismetMathLibrary::RandomIntegerInRange(JitterStrengthMinMultiplier, JitterStrengthMaxMultiplier);
 	TelekineticMesh->AddImpulse(UKismetMathLibrary::RandomUnitVector() * Strength, NAME_None, true);
+}
+
+void ATelekineticActor::Highlight(bool bHighlight)
+{
+	TelekineticMesh->SetRenderCustomDepth(bHighlight);
 }
 
 float ATelekineticActor::GetLiftEndTimeSeconds() const

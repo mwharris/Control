@@ -106,7 +106,7 @@ void ATelekinesisCharacter::Tick(float DeltaSeconds)
 		ObjectTypes,
 		false,
 		ActorsToIgnore,
-		EDrawDebugTrace::ForOneFrame,
+		EDrawDebugTrace::None,
 		Hit,
 		true
 	);
@@ -116,19 +116,19 @@ void ATelekinesisCharacter::Tick(float DeltaSeconds)
 	{
 		ATelekineticActor* TKProp = Cast<ATelekineticActor>(Hit.GetActor());
 		// Remove the highlight from any past TelekineticActor
-		if (TelekineticActor != nullptr)
+		if (TelekineticTarget != nullptr)
 		{
-			TelekineticActor->Highlight(false);
+			TelekineticTarget->Highlight(false);
 		}
 		// Highlight and cache the new TelekineticActor
-		TelekineticActor = TKProp;
-		TelekineticActor->Highlight(true);
+		TelekineticTarget = TKProp;
+		TelekineticTarget->Highlight(true);
 	}
 	// Didn't hit anything, remove any active TelekineticActor
-	else if (TelekineticActor != nullptr)
+	else if (TelekineticTarget != nullptr)
 	{
-		TelekineticActor->Highlight(false);
-		TelekineticActor = nullptr;
+		TelekineticTarget->Highlight(false);
+		TelekineticTarget = nullptr;
 	}
 }
 
@@ -176,17 +176,12 @@ void ATelekinesisCharacter::MoveRight(float Value)
 
 void ATelekinesisCharacter::InputTelekinesis()
 {
-	// Don't activate TK if we're not aiming at a TK Actor
-	if (TelekineticActor == nullptr)
-	{
-		return;
-	}
 	// Pull or Push depending on our current state
-	if (!bTelekinesis)
+	if (!bTelekinesis && TelekineticTarget != nullptr)
 	{
 		Pull();
 	}
-	else
+	else if (bTelekinesis)
 	{
 		Push();
 	}
@@ -199,8 +194,11 @@ void ATelekinesisCharacter::Pull()
 	CameraOffsetRightTarget = CameraZoomOffsetRight;
 	CameraOffsetUpTarget = CameraZoomOffsetUp;
 	CameraArmLengthTarget = CameraZoomArmLength;
+	// Call blueprints to handle rotating / zooming in the camera
 	Zoom();
-	TelekineticActor->Pull(this);
+	// Tell prop to lift and pull towards us
+	CurrTelekineticProp = TelekineticTarget;
+	TelekineticTarget->Pull(this);
 }
 
 void ATelekinesisCharacter::Push()
@@ -211,8 +209,37 @@ void ATelekinesisCharacter::Push()
 	CameraOffsetRightTarget = CameraDefaultOffsetRight;
 	CameraOffsetUpTarget = CameraDefaultOffsetUp;
 	CameraArmLengthTarget = CameraDefaultArmLength;
+	// Call blueprints to handle rotating / zooming in the camera
 	Zoom();
-	TelekineticActor->Push(FVector::ZeroVector);
+	// Determine push line trace and send to the prop
+	FVector ImpactPoint = FVector::ZeroVector;
+	PushTrace(ImpactPoint);
+	CurrTelekineticProp->Push(ImpactPoint);
+	// Kill the reference to our held prop
+	CurrTelekineticProp = nullptr;
+}
+
+void ATelekinesisCharacter::PushTrace(FVector& ImpactPoint)
+{
+	TArray<AActor*> ActorsToIgnore;
+	ActorsToIgnore.Add(this);
+	ActorsToIgnore.Add(TelekineticTarget);
+
+	FHitResult Hit;
+	const FVector End = FollowCamera->GetComponentLocation() + (FollowCamera->GetForwardVector() * PushTraceDistance);
+	UKismetSystemLibrary::LineTraceSingle(
+		GetWorld(),
+		FollowCamera->GetComponentLocation(),
+		End,
+		ETraceTypeQuery::TraceTypeQuery1,
+		false,
+		ActorsToIgnore,
+		EDrawDebugTrace::ForDuration,
+		Hit,
+		true
+	);
+
+	ImpactPoint	= Hit.ImpactPoint;
 }
 
 void ATelekinesisCharacter::AddCameraBoomOffset() const
