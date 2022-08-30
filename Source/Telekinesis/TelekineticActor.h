@@ -24,6 +24,9 @@ public:
 protected:
 	virtual void BeginPlay() override;
 
+	UFUNCTION()
+	void OnHitCallback(UPrimitiveComponent* HitComp, AActor* OtherActor, UPrimitiveComponent* OtherComp, FVector NormalImpulse, const FHitResult& Hit);
+
 private:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Mesh", meta=(AllowPrivateAccess = "true"))
 	TObjectPtr<UStaticMeshComponent> TelekineticMesh;
@@ -56,6 +59,8 @@ private:
 	float MassMultiplierMinRange = 1.f;
 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category="Reach", meta=(AllowPrivateAccess = "true"))
 	float MassMultiplierMaxRange = 5.f;
+	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category="Reach", meta=(AllowPrivateAccess = "true"))
+	float CollisionBounciness = 2.f;
 	
 	/** Min frame time for object to randomly Jitter */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category="Jitter", meta=(AllowPrivateAccess = "true"))
@@ -87,6 +92,8 @@ private:
 	// Other variables
 	class ATelekinesisCharacter* PlayerCharacter = nullptr;
 	ETelekinesisStates TelekinesisState = ETelekinesisStates::Default;
+	FVector PushDestination = FVector::ZeroVector;
+	FVector PushDirection = FVector::ZeroVector;
 
 	void StartLift();
 	void Lift();
@@ -95,6 +102,7 @@ private:
 	void ReachCharacter();
 	void ReachPoint();
 	void ReachLocation(const FVector& Target, float ReachSpeedMultiplier, bool bConstantSpeed);
+	void ClearReachTimer();
 	
 	void Jitter();
 	float GetLiftEndTimeSeconds() const;

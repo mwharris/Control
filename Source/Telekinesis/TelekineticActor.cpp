@@ -12,6 +12,8 @@ ATelekineticActor::ATelekineticActor()
 	{
 		SetRootComponent(TelekineticMesh);
 	}
+
+	TelekineticMesh->OnComponentHit.AddDynamic(this, &ATelekineticActor::OnHitCallback);
 }
 
 void ATelekineticActor::BeginPlay()
@@ -35,6 +37,8 @@ void ATelekineticActor::StartLift()
 
 void ATelekineticActor::Lift()
 {
+	TelekinesisState = ETelekinesisStates::Pulled;
+
 	// Determine our Alpha value
 	const float CurrTimeSeconds = GetWorld()->GetTimeSeconds();
 	const float Alpha = UKismetMathLibrary::MapRangeClamped(CurrTimeSeconds, LiftStartTimeSeconds, GetLiftEndTimeSeconds(), 0.f, 1.0f);
@@ -66,8 +70,9 @@ void ATelekineticActor::Lift()
 
 void ATelekineticActor::Push(FVector Destination)
 {
-	UKismetSystemLibrary::DrawDebugCircle(GetWorld(), Destination, 10.f);
 	TelekinesisState = ETelekinesisStates::Pushed;
+	PushDestination = Destination;
+	PushDirection = (Destination - GetActorLocation()).GetSafeNormal();
 	// Stop our Lift timer if that's active
 	if (LiftTimerHandle.IsValid())
 	{
@@ -77,8 +82,7 @@ void ATelekineticActor::Push(FVector Destination)
 	// If our Reach timer has already begun, reset it with a new target
 	if (ReachTimerHandle.IsValid())
 	{
-		GetWorldTimerManager().ClearTimer(ReachTimerHandle);
-		ReachTimerHandle.Invalidate();
+		ClearReachTimer();
 	}
 	// Call reach with the passed-in destination
 	ReachTarget = Destination;
@@ -87,10 +91,8 @@ void ATelekineticActor::Push(FVector Destination)
 
 void ATelekineticActor::StartReach(bool bReachCharacter)
 {
-	
 	TelekineticMesh->SetEnableGravity(false);
 	TelekineticMesh->SetLinearDamping(20.0f);
-	TelekinesisState = ETelekinesisStates::Pulled;
 	JitterFrameTime = UKismetMathLibrary::RandomIntegerInRange(JitterFrameTimeRangeMin, JitterFrameTimeRangeMax);
 	// Add a random angular impulse so the object isn't so static
 	const float ImpulseStrength = UKismetMathLibrary::RandomFloatInRange(LiftAngularImpulseMinStrength, LiftAngularImpulseMaxStrength);
@@ -164,6 +166,34 @@ void ATelekineticActor::Jitter()
 	TelekineticMesh->AddImpulse(UKismetMathLibrary::RandomUnitVector() * Strength, NAME_None, true);
 }
 
+void ATelekineticActor::OnHitCallback(UPrimitiveComponent* HitComp, AActor* OtherActor, UPrimitiveComponent* OtherComp,
+	FVector NormalImpulse, const FHitResult& Hit)
+{
+	if (TelekinesisState != ETelekinesisStates::Pushed)
+	{
+		return;
+	}
+	// Reset variables updated when we lift/reach
+	TelekineticMesh->SetEnableGravity(true);
+	TelekineticMesh->SetLinearDamping(0.1f);
+	TelekinesisState = ETelekinesisStates::Default;
+	ClearReachTimer();
+
+	// Add our own slight bounce impulse
+	const FVector Reflection = UKismetMathLibrary::GetReflectionVector(PushDirection, Hit.ImpactNormal);
+	UKismetSystemLibrary::DrawDebugLine(
+		GetWorld(),
+		Hit.ImpactPoint, 
+		Hit.ImpactPoint + (Reflection * 1000.f),
+		FLinearColor::White,
+		10.f,
+		5.f
+	);
+	// Reduce the physic's engine influence but attempt to keep the direction
+	TelekineticMesh->SetAllPhysicsLinearVelocity(FVector::ZeroVector);
+	TelekineticMesh->AddImpulse(Hit.ImpactPoint + (Reflection * CollisionBounciness));
+}
+
 void ATelekineticActor::Highlight(bool bHighlight)
 {
 	TelekineticMesh->SetRenderCustomDepth(bHighlight);
@@ -172,4 +202,10 @@ void ATelekineticActor::Highlight(bool bHighlight)
 float ATelekineticActor::GetLiftEndTimeSeconds() const
 {
 	return LiftStartTimeSeconds + LiftDurationSeconds;
+}
+
+void ATelekineticActor::ClearReachTimer()
+{
+	GetWorldTimerManager().ClearTimer(ReachTimerHandle);
+	ReachTimerHandle.Invalidate();
 }
