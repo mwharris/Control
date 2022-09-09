@@ -199,6 +199,8 @@ void ATelekinesisCharacter::Pull()
 	// Tell prop to lift and pull towards us
 	CurrTelekineticProp = TelekineticTarget;
 	TelekineticTarget->Pull(this);
+	// Play our Pull animation
+	PlayAnimMontage(PullAnimMontage);
 }
 
 void ATelekinesisCharacter::Push()

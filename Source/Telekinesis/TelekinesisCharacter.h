@@ -105,7 +105,10 @@ private:
 	/** The strength of our Push  */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Telekinesis", meta=(AllowPrivateAccess=true))
 	float PushTraceDistance = 20000.f;
-
+	/** Pull animation */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Telekinesis", meta=(AllowPrivateAccess=true))
+	class UAnimMontage* PullAnimMontage = nullptr;
+	
 	/** Functions for setting up pulling and pushing objects */
 	void Push();
 	void PushTrace(FVector& ImpactPoint);
