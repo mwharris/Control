@@ -108,6 +108,11 @@ private:
 	/** Pull animation */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Telekinesis", meta=(AllowPrivateAccess=true))
 	class UAnimMontage* PullAnimMontage = nullptr;
+	/** Push animation */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Telekinesis", meta=(AllowPrivateAccess=true))
+	class UAnimMontage* PushAnimMontage = nullptr;
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Telekinesis", meta=(AllowPrivateAccess=true))
+	float PushAnimPlayRate = 1.f;
 	
 	/** Functions for setting up pulling and pushing objects */
 	void Push();
