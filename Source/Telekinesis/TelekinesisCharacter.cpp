@@ -220,7 +220,7 @@ void ATelekinesisCharacter::Push()
 	// Kill the reference to our held prop
 	CurrTelekineticProp = nullptr;
 	// Play our Push animation
-	PlayAnimMontage(PushAnimMontage, PushAnimPlayRate);
+	PlayAnimMontage(PushAnimMontage);
 }
 
 void ATelekinesisCharacter::PushTrace(FVector& ImpactPoint)
