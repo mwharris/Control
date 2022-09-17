@@ -86,6 +86,12 @@ void ATelekinesisCharacter::Tick(float DeltaSeconds)
 {
 	Super::Tick(DeltaSeconds);
 
+	// Don't perform line trace if we're holding an object
+	if (CurrTelekineticProp != nullptr)
+	{
+		return;
+	}
+
 	// Only look for telekinesis objects
 	TArray<TEnumAsByte<EObjectTypeQuery>> ObjectTypes;
 	ObjectTypes.Add(ObjectTypeQuery7);
@@ -227,7 +233,7 @@ void ATelekinesisCharacter::PushTrace(FVector& ImpactPoint)
 {
 	TArray<AActor*> ActorsToIgnore;
 	ActorsToIgnore.Add(this);
-	ActorsToIgnore.Add(TelekineticTarget);
+	ActorsToIgnore.Add(CurrTelekineticProp);
 
 	FHitResult Hit;
 	const FVector End = FollowCamera->GetComponentLocation() + (FollowCamera->GetForwardVector() * PushTraceDistance);
