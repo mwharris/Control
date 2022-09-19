@@ -28,8 +28,10 @@ protected:
 	void OnHitCallback(UPrimitiveComponent* HitComp, AActor* OtherActor, UPrimitiveComponent* OtherComp, FVector NormalImpulse, const FHitResult& Hit);
 
 private:
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Mesh", meta=(AllowPrivateAccess = "true"))
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Component", meta=(AllowPrivateAccess = "true"))
 	TObjectPtr<UStaticMeshComponent> TelekineticMesh;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="VFX", meta=(AllowPrivateAccess = "true"))
+	class UNiagaraComponent* NiagaraComponent;
 	
 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category="Lift", meta=(AllowPrivateAccess = "true"))
 	float LiftDurationSeconds = 0.5f;
@@ -75,6 +77,9 @@ private:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category="Jitter", meta=(AllowPrivateAccess = "true"))
 	float JitterStrengthMaxMultiplier = 300.f;
 	
+	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category="VFX", meta=(AllowPrivateAccess = "true"))
+	float NiagaraSpawnRate = 2000.f;
+	
 	// Variables for Lift
 	FTimerHandle LiftTimerHandle;
 	float LiftStartTimeSeconds = 0.f;
@@ -103,6 +108,8 @@ private:
 	void ReachPoint();
 	void ReachLocation(const FVector& Target, float ReachSpeedMultiplier, bool bConstantSpeed);
 	void ClearReachTimer();
+	void FeedSocketLocationToNiagara() const;
+	void ActivateTrail() const;
 	
 	void Jitter();
 	float GetLiftEndTimeSeconds() const;
