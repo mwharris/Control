@@ -26,12 +26,16 @@ protected:
 
 	UFUNCTION()
 	void OnHitCallback(UPrimitiveComponent* HitComp, AActor* OtherActor, UPrimitiveComponent* OtherComp, FVector NormalImpulse, const FHitResult& Hit);
+	UFUNCTION(BlueprintImplementableEvent)
+	void ActivateParticleSystem();
+	UFUNCTION(BlueprintImplementableEvent)
+	void DeactivateParticleSystem();
+	UFUNCTION(BlueprintImplementableEvent)
+	void FeedLocationToParticleSystem();
 
 private:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Component", meta=(AllowPrivateAccess = "true"))
 	TObjectPtr<UStaticMeshComponent> TelekineticMesh;
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="VFX", meta=(AllowPrivateAccess = "true"))
-	class UNiagaraComponent* NiagaraComponent;
 	
 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category="Lift", meta=(AllowPrivateAccess = "true"))
 	float LiftDurationSeconds = 0.5f;
@@ -108,9 +112,7 @@ private:
 	void ReachPoint();
 	void ReachLocation(const FVector& Target, float ReachSpeedMultiplier, bool bConstantSpeed);
 	void ClearReachTimer();
-	void FeedSocketLocationToNiagara() const;
-	void ActivateTrail() const;
-	
+
 	void Jitter();
 	float GetLiftEndTimeSeconds() const;
 	

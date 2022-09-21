@@ -2,8 +2,6 @@
 #include "TelekinesisCharacter.h"
 #include "Kismet/KismetMathLibrary.h"
 #include "Kismet/KismetSystemLibrary.h"
-#include "NiagaraFunctionLibrary.h"
-#include "NiagaraComponent.h"
 
 ATelekineticActor::ATelekineticActor()
 {
@@ -15,14 +13,11 @@ ATelekineticActor::ATelekineticActor()
 		SetRootComponent(TelekineticMesh);
 	}
 	TelekineticMesh->OnComponentHit.AddDynamic(this, &ATelekineticActor::OnHitCallback);
-
-	NiagaraComponent = CreateDefaultSubobject<UNiagaraComponent>("Niagara");
 }
 
 void ATelekineticActor::BeginPlay()
 {
 	Super::BeginPlay();
-	ActivateTrail();
 }
 
 void ATelekineticActor::Pull(ATelekinesisCharacter* InPlayerCharacter)
@@ -36,8 +31,8 @@ void ATelekineticActor::StartLift()
 	Highlight(false);
 	LiftStart = GetActorLocation();
 	LiftStartTimeSeconds = GetWorld()->GetTimeSeconds();
-	NiagaraComponent->Activate();
 	GetWorldTimerManager().SetTimer(LiftTimerHandle, this, &ATelekineticActor::Lift, 0.016f, true);
+	ActivateParticleSystem();
 }
 
 void ATelekineticActor::Lift()
@@ -76,7 +71,6 @@ void ATelekineticActor::Lift()
 void ATelekineticActor::Push(FVector Destination)
 {
 	TelekinesisState = ETelekinesisStates::Pushed;
-	PushDestination = Destination;
 	PushDirection = (Destination - GetActorLocation()).GetSafeNormal();
 	// Stop our Lift timer if that's active
 	if (LiftTimerHandle.IsValid())
@@ -106,11 +100,11 @@ void ATelekineticActor::StartReach(bool bReachCharacter)
 	// Reach Character or Target depending on boolean
 	if (bReachCharacter)
 	{
-		GetWorldTimerManager().SetTimer(ReachTimerHandle, this, &ATelekineticActor::ReachCharacter, 0.016, true);
+		GetWorldTimerManager().SetTimer(ReachTimerHandle, this, &ATelekineticActor::ReachCharacter, 0.0167, true);
 	}
 	else
 	{
-		GetWorldTimerManager().SetTimer(ReachTimerHandle, this, &ATelekineticActor::ReachPoint, 0.016, true);
+		GetWorldTimerManager().SetTimer(ReachTimerHandle, this, &ATelekineticActor::ReachPoint, 0.0167, true);
 	}
 }
 
@@ -130,7 +124,7 @@ void ATelekineticActor::ReachPoint()
 
 void ATelekineticActor::ReachLocation(const FVector& Location, float SpeedMultiplier, bool bConstantSpeed)
 {
-	FeedSocketLocationToNiagara();
+	FeedLocationToParticleSystem();
 	// Get the direction we want to move
 	FVector MoveDirection = Location - GetActorLocation();
 	// Pull at a constant rate, not based on distance
@@ -179,6 +173,7 @@ void ATelekineticActor::OnHitCallback(UPrimitiveComponent* HitComp, AActor* Othe
 	{
 		return;
 	}
+	DeactivateParticleSystem();
 	
 	// Reset variables updated when we lift/reach
 	TelekineticMesh->SetEnableGravity(true);
@@ -188,6 +183,7 @@ void ATelekineticActor::OnHitCallback(UPrimitiveComponent* HitComp, AActor* Othe
 
 	// Add our own slight bounce impulse
 	const FVector Reflection = UKismetMathLibrary::GetReflectionVector(PushDirection, Hit.ImpactNormal);
+	/*
 	UKismetSystemLibrary::DrawDebugLine(
 		GetWorld(),
 		Hit.ImpactPoint, 
@@ -196,11 +192,10 @@ void ATelekineticActor::OnHitCallback(UPrimitiveComponent* HitComp, AActor* Othe
 		10.f,
 		5.f
 	);
+	*/
 	// Reduce the physic's engine influence but attempt to keep the direction
 	TelekineticMesh->SetAllPhysicsLinearVelocity(FVector::ZeroVector);
 	TelekineticMesh->AddImpulse(Hit.ImpactPoint + (Reflection * CollisionBounciness));
-
-	NiagaraComponent->Deactivate();
 }
 
 void ATelekineticActor::Highlight(bool bHighlight)
@@ -217,14 +212,4 @@ void ATelekineticActor::ClearReachTimer()
 {
 	GetWorldTimerManager().ClearTimer(ReachTimerHandle);
 	ReachTimerHandle.Invalidate();
-}
-
-void ATelekineticActor::FeedSocketLocationToNiagara() const
-{
-	NiagaraComponent->SetVectorParameter(FName("Location0"), GetActorLocation());
-}
-
-void ATelekineticActor::ActivateTrail() const
-{
-	NiagaraComponent->SetFloatParameter(FName("Spawn0"), NiagaraSpawnRate);
 }
