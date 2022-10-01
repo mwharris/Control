@@ -32,10 +32,14 @@ protected:
 	void DeactivateParticleSystem();
 	UFUNCTION(BlueprintImplementableEvent)
 	void FeedLocationToParticleSystem();
+	UFUNCTION(BlueprintImplementableEvent)
+	void SpawnSparks(const FVector& Impulse);
 
 private:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Component", meta=(AllowPrivateAccess = "true"))
 	TObjectPtr<UStaticMeshComponent> TelekineticMesh;
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Component", meta = (AllowPrivateAccess = "true"))
+	class USphereComponent* AttractionField;
 	
 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category="Lift", meta=(AllowPrivateAccess = "true"))
 	float LiftDurationSeconds = 0.5f;
@@ -83,7 +87,7 @@ private:
 	
 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category="VFX", meta=(AllowPrivateAccess = "true"))
 	float NiagaraSpawnRate = 2000.f;
-	
+
 	// Variables for Lift
 	FTimerHandle LiftTimerHandle;
 	float LiftStartTimeSeconds = 0.f;
@@ -98,21 +102,37 @@ private:
 	int32 JitterFrameTime = 0;
 	int32 JitterCounter = 0;
 
+	// Variables for attracting AMiniTelekineticActors
+	TArray<class AMiniTelekineticActor*> AttractedMiniProps;
+	
 	// Other variables
 	class ATelekinesisCharacter* PlayerCharacter = nullptr;
 	ETelekinesisStates TelekinesisState = ETelekinesisStates::Default;
 	FVector PushDestination = FVector::ZeroVector;
 	FVector PushDirection = FVector::ZeroVector;
 
+	// Lift phase
 	void StartLift();
 	void Lift();
 
+	// Reach phase
 	void StartReach(bool bReachCharacter);
 	void ReachCharacter();
 	void ReachPoint();
 	void ReachLocation(const FVector& Target, float ReachSpeedMultiplier, bool bConstantSpeed);
 	void ClearReachTimer();
 
+	// Mini Prop Attraction
+	UFUNCTION()
+	void OnBeginOverlap(class UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, class UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult);
+	UFUNCTION()
+	void OnEndOverlap(class UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, class UPrimitiveComponent* OtherComp, int32 OtherBodyIndex);
+	void DetectMiniProps();
+	void AttractMiniProps();
+	void AddMiniProp(class AMiniTelekineticActor* MiniProp);
+	void RemoveMiniProp(class AMiniTelekineticActor* MiniProp);
+	
+	// Other functions
 	void Jitter();
 	float GetLiftEndTimeSeconds() const;
 	

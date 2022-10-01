@@ -1,18 +1,27 @@
 #include "TelekineticActor.h"
 #include "TelekinesisCharacter.h"
+#include "Components/SphereComponent.h"
 #include "Kismet/KismetMathLibrary.h"
 #include "Kismet/KismetSystemLibrary.h"
+#include "MiniTelekineticActor.h"
 
 ATelekineticActor::ATelekineticActor()
 {
 	PrimaryActorTick.bCanEverTick = false;
-	
+
+	// Setup Mesh and OnComponentHit callback
 	TelekineticMesh = CreateOptionalDefaultSubobject<UStaticMeshComponent>("Telekinetic Mesh");
 	if (TelekineticMesh)
 	{
 		SetRootComponent(TelekineticMesh);
 	}
 	TelekineticMesh->OnComponentHit.AddDynamic(this, &ATelekineticActor::OnHitCallback);
+
+	// Setup the Attraction Field for Mini Props
+	AttractionField = CreateDefaultSubobject<USphereComponent>("Attraction Field");
+	AttractionField->SetupAttachment(RootComponent);
+	AttractionField->OnComponentBeginOverlap.AddDynamic(this, &ATelekineticActor::OnBeginOverlap);
+	AttractionField->OnComponentEndOverlap.AddDynamic(this, &ATelekineticActor::OnEndOverlap);
 }
 
 void ATelekineticActor::BeginPlay()
@@ -33,6 +42,7 @@ void ATelekineticActor::StartLift()
 	LiftStartTimeSeconds = GetWorld()->GetTimeSeconds();
 	GetWorldTimerManager().SetTimer(LiftTimerHandle, this, &ATelekineticActor::Lift, 0.016f, true);
 	ActivateParticleSystem();
+	DetectMiniProps();
 }
 
 void ATelekineticActor::Lift()
@@ -72,6 +82,13 @@ void ATelekineticActor::Push(FVector Destination)
 {
 	TelekinesisState = ETelekinesisStates::Pushed;
 	PushDirection = (Destination - GetActorLocation()).GetSafeNormal();
+	// Disable mini props collision so we don't collide with attracted mini props
+	for (const auto MiniProp : AttractedMiniProps)
+	{
+		MiniProp->GetMesh()->SetCollisionResponseToChannel(ECollisionChannel::ECC_GameTraceChannel1, ECollisionResponse::ECR_Ignore);
+	}
+	// Release all attracted mini props
+	AttractedMiniProps.Empty();
 	// Stop our Lift timer if that's active
 	if (LiftTimerHandle.IsValid())
 	{
@@ -146,10 +163,11 @@ void ATelekineticActor::ReachLocation(const FVector& Location, float SpeedMultip
 	MoveDirection *= SpeedMultiplier;
 	// Add an impulse to our object to reach its destination
 	TelekineticMesh->AddImpulse(MoveDirection, NAME_None, true);
-	// Jitter the object periodically while it's held
+	// Jitter and attract MiniProps while an object is held
 	if (TelekinesisState == ETelekinesisStates::Pulled)
 	{
 		Jitter();
+		AttractMiniProps();
 	}
 }
 
@@ -173,29 +191,20 @@ void ATelekineticActor::OnHitCallback(UPrimitiveComponent* HitComp, AActor* Othe
 	{
 		return;
 	}
+	// Deactivate the held particle system
 	DeactivateParticleSystem();
-	
 	// Reset variables updated when we lift/reach
 	TelekineticMesh->SetEnableGravity(true);
 	TelekineticMesh->SetLinearDamping(0.1f);
 	TelekinesisState = ETelekinesisStates::Default;
 	ClearReachTimer();
-
 	// Add our own slight bounce impulse
 	const FVector Reflection = UKismetMathLibrary::GetReflectionVector(PushDirection, Hit.ImpactNormal);
-	/*
-	UKismetSystemLibrary::DrawDebugLine(
-		GetWorld(),
-		Hit.ImpactPoint, 
-		Hit.ImpactPoint + (Reflection * 1000.f),
-		FLinearColor::White,
-		10.f,
-		5.f
-	);
-	*/
 	// Reduce the physic's engine influence but attempt to keep the direction
 	TelekineticMesh->SetAllPhysicsLinearVelocity(FVector::ZeroVector);
 	TelekineticMesh->AddImpulse(Hit.ImpactPoint + (Reflection * CollisionBounciness));
+	// Spawn sparks particle system (blueprints)
+	SpawnSparks(-PushDirection);
 }
 
 void ATelekineticActor::Highlight(bool bHighlight)
@@ -212,4 +221,88 @@ void ATelekineticActor::ClearReachTimer()
 {
 	GetWorldTimerManager().ClearTimer(ReachTimerHandle);
 	ReachTimerHandle.Invalidate();
+}
+
+void ATelekineticActor::AttractMiniProps()
+{
+	for (const auto MiniProp : AttractedMiniProps)
+	{
+		FVector Direction = (GetActorLocation() - MiniProp->GetActorLocation()).GetSafeNormal();
+		MiniProp->AttractForce(Direction);
+	}
+}
+
+void ATelekineticActor::OnBeginOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp,
+                                       int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult)
+{
+	AMiniTelekineticActor* MiniProp = Cast<AMiniTelekineticActor>(OtherActor);
+	if (MiniProp == nullptr)
+	{
+		return;
+	}
+	AddMiniProp(MiniProp);
+}
+
+void ATelekineticActor::OnEndOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp,
+	int32 OtherBodyIndex)
+{
+	AMiniTelekineticActor* MiniProp = Cast<AMiniTelekineticActor>(OtherActor);
+	if (MiniProp == nullptr)
+	{
+		return;
+	}
+	RemoveMiniProp(MiniProp);
+}
+
+// Detect any MiniProps that are in the immediate radius of a Lifted object
+void ATelekineticActor::DetectMiniProps()
+{
+	// Setup variables for the sphere trace
+	const TArray<AActor*> ActorsToIgnore;
+	TArray<FHitResult> HitResults;
+
+	// Only look for MiniProp object types
+	TArray<TEnumAsByte<EObjectTypeQuery>> ObjectTypes;
+	ObjectTypes.Add(ObjectTypeQuery2);
+
+	// Perform the trace
+	UKismetSystemLibrary::SphereTraceMultiForObjects(
+		GetWorld(),
+		GetActorLocation(),
+		GetActorLocation(),
+		AttractionField->GetScaledSphereRadius(),
+		ObjectTypes,
+		false,
+		ActorsToIgnore,
+		EDrawDebugTrace::None,
+		HitResults,
+		true
+	);
+
+	// Add any hit mini props to the attracted mini props array
+	for (auto Hit : HitResults)
+	{
+		AMiniTelekineticActor* MiniProp = Cast<AMiniTelekineticActor>(Hit.GetActor());
+		if (MiniProp == nullptr)
+		{
+			continue;
+		}
+		AddMiniProp(MiniProp);
+	}
+}
+
+void ATelekineticActor::AddMiniProp(AMiniTelekineticActor* MiniProp)
+{
+	AttractedMiniProps.Add(MiniProp);
+	MiniProp->GetMesh()->SetEnableGravity(false);
+	MiniProp->GetMesh()->SetLinearDamping(10.f);
+	// Make sure MiniProps collide with the held object
+	MiniProp->GetMesh()->SetCollisionResponseToChannel(ECollisionChannel::ECC_GameTraceChannel1, ECollisionResponse::ECR_Block);
+}
+
+void ATelekineticActor::RemoveMiniProp(AMiniTelekineticActor* MiniProp)
+{
+	AttractedMiniProps.Remove(MiniProp);
+	MiniProp->GetMesh()->SetEnableGravity(true);
+	MiniProp->GetMesh()->SetLinearDamping(0.01f);
 }
