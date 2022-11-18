@@ -40,6 +40,8 @@ private:
 	TObjectPtr<UStaticMeshComponent> TelekineticMesh;
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Component", meta = (AllowPrivateAccess = "true"))
 	class USphereComponent* AttractionField;
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Component", meta = (AllowPrivateAccess = "true"))
+	class UAudioComponent* AudioComponent;
 	
 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category="Lift", meta=(AllowPrivateAccess = "true"))
 	float LiftDurationSeconds = 0.5f;
@@ -87,6 +89,11 @@ private:
 	
 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category="VFX", meta=(AllowPrivateAccess = "true"))
 	float NiagaraSpawnRate = 2000.f;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category="Sounds", meta=(AllowPrivateAccess = "true"))
+	class USoundBase* PushSound = nullptr;
+	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category="Sounds", meta=(AllowPrivateAccess = "true"))
+	class USoundBase* LiftSound = nullptr;
 
 	// Variables for Lift
 	FTimerHandle LiftTimerHandle;

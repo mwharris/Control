@@ -4,6 +4,8 @@
 #include "Kismet/KismetMathLibrary.h"
 #include "Kismet/KismetSystemLibrary.h"
 #include "MiniTelekineticActor.h"
+#include "Components/AudioComponent.h"
+#include "Kismet/GameplayStatics.h"
 
 ATelekineticActor::ATelekineticActor()
 {
@@ -22,6 +24,10 @@ ATelekineticActor::ATelekineticActor()
 	AttractionField->SetupAttachment(RootComponent);
 	AttractionField->OnComponentBeginOverlap.AddDynamic(this, &ATelekineticActor::OnBeginOverlap);
 	AttractionField->OnComponentEndOverlap.AddDynamic(this, &ATelekineticActor::OnEndOverlap);
+
+	// AudioComponent for wind sound
+	AudioComponent = CreateDefaultSubobject<UAudioComponent>("Wind");
+	AudioComponent->SetupAttachment(RootComponent);
 }
 
 void ATelekineticActor::BeginPlay()
@@ -43,6 +49,7 @@ void ATelekineticActor::StartLift()
 	GetWorldTimerManager().SetTimer(LiftTimerHandle, this, &ATelekineticActor::Lift, 0.016f, true);
 	ActivateParticleSystem();
 	DetectMiniProps();
+	UGameplayStatics::PlaySound2D(GetWorld(), LiftSound);
 }
 
 void ATelekineticActor::Lift()
@@ -103,6 +110,7 @@ void ATelekineticActor::Push(FVector Destination)
 	// Call reach with the passed-in destination
 	ReachTarget = Destination;
 	StartReach(false);
+	UGameplayStatics::PlaySound2D(GetWorld(), PushSound);
 }
 
 void ATelekineticActor::StartReach(bool bReachCharacter)
@@ -117,10 +125,12 @@ void ATelekineticActor::StartReach(bool bReachCharacter)
 	// Reach Character or Target depending on boolean
 	if (bReachCharacter)
 	{
+		AudioComponent->Activate(true);
 		GetWorldTimerManager().SetTimer(ReachTimerHandle, this, &ATelekineticActor::ReachCharacter, 0.0167, true);
 	}
 	else
 	{
+		AudioComponent->Deactivate();
 		GetWorldTimerManager().SetTimer(ReachTimerHandle, this, &ATelekineticActor::ReachPoint, 0.0167, true);
 	}
 }
