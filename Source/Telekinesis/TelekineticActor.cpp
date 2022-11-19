@@ -22,8 +22,8 @@ ATelekineticActor::ATelekineticActor()
 	// Setup the Attraction Field for Mini Props
 	AttractionField = CreateDefaultSubobject<USphereComponent>("Attraction Field");
 	AttractionField->SetupAttachment(RootComponent);
-	// AttractionField->OnComponentBeginOverlap.AddDynamic(this, &ATelekineticActor::OnBeginOverlap);
-	// AttractionField->OnComponentEndOverlap.AddDynamic(this, &ATelekineticActor::OnEndOverlap);
+	//AttractionField->OnComponentBeginOverlap.AddDynamic(this, &ATelekineticActor::OnBeginOverlap);
+	//AttractionField->OnComponentEndOverlap.AddDynamic(this, &ATelekineticActor::OnEndOverlap);
 
 	// AudioComponent for wind sound
 	AudioComponent = CreateDefaultSubobject<UAudioComponent>("Wind");
@@ -245,23 +245,23 @@ void ATelekineticActor::AttractMiniProps()
 void ATelekineticActor::OnBeginOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp,
                                        int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult)
 {
-	AMiniTelekineticActor* MiniProp = Cast<AMiniTelekineticActor>(OtherActor);
-	if (MiniProp == nullptr)
+	if (TelekinesisState != ETelekinesisStates::Pulled)
 	{
 		return;
 	}
-	AddMiniProp(MiniProp);
+	if (AMiniTelekineticActor* MiniProp = Cast<AMiniTelekineticActor>(OtherActor))
+	{
+		AddMiniProp(MiniProp);
+	}
 }
 
 void ATelekineticActor::OnEndOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp,
 	int32 OtherBodyIndex)
 {
-	AMiniTelekineticActor* MiniProp = Cast<AMiniTelekineticActor>(OtherActor);
-	if (MiniProp == nullptr)
+	if (AMiniTelekineticActor* MiniProp = Cast<AMiniTelekineticActor>(OtherActor))
 	{
-		return;
+		RemoveMiniProp(MiniProp);
 	}
-	RemoveMiniProp(MiniProp);
 }
 
 // Detect any MiniProps that are in the immediate radius of a Lifted object
@@ -280,7 +280,7 @@ void ATelekineticActor::DetectMiniProps()
 		GetWorld(),
 		GetActorLocation(),
 		GetActorLocation(),
-		AttractionField->GetUnscaledSphereRadius(),
+		AttractionField->GetScaledSphereRadius(),
 		ObjectTypes,
 		false,
 		ActorsToIgnore,
@@ -305,6 +305,7 @@ void ATelekineticActor::DetectMiniProps()
 
 void ATelekineticActor::AddMiniProp(AMiniTelekineticActor* MiniProp)
 {
+	UE_LOG(LogTemp, Warning, TEXT("AddMiniProp!"));
 	AttractedMiniProps.Add(MiniProp);
 	MiniProp->GetMesh()->SetEnableGravity(false);
 	MiniProp->GetMesh()->SetLinearDamping(10.f);
@@ -314,6 +315,7 @@ void ATelekineticActor::AddMiniProp(AMiniTelekineticActor* MiniProp)
 
 void ATelekineticActor::RemoveMiniProp(AMiniTelekineticActor* MiniProp)
 {
+	UE_LOG(LogTemp, Warning, TEXT("RemoveMiniProp!"));
 	AttractedMiniProps.Remove(MiniProp);
 	MiniProp->GetMesh()->SetEnableGravity(true);
 	MiniProp->GetMesh()->SetLinearDamping(0.01f);
