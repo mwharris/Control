@@ -22,8 +22,8 @@ ATelekineticActor::ATelekineticActor()
 	// Setup the Attraction Field for Mini Props
 	AttractionField = CreateDefaultSubobject<USphereComponent>("Attraction Field");
 	AttractionField->SetupAttachment(RootComponent);
-	AttractionField->OnComponentBeginOverlap.AddDynamic(this, &ATelekineticActor::OnBeginOverlap);
-	AttractionField->OnComponentEndOverlap.AddDynamic(this, &ATelekineticActor::OnEndOverlap);
+	// AttractionField->OnComponentBeginOverlap.AddDynamic(this, &ATelekineticActor::OnBeginOverlap);
+	// AttractionField->OnComponentEndOverlap.AddDynamic(this, &ATelekineticActor::OnEndOverlap);
 
 	// AudioComponent for wind sound
 	AudioComponent = CreateDefaultSubobject<UAudioComponent>("Wind");
@@ -48,7 +48,7 @@ void ATelekineticActor::StartLift()
 	LiftStartTimeSeconds = GetWorld()->GetTimeSeconds();
 	GetWorldTimerManager().SetTimer(LiftTimerHandle, this, &ATelekineticActor::Lift, 0.016f, true);
 	ActivateParticleSystem();
-	DetectMiniProps();
+	// DetectMiniProps();
 	UGameplayStatics::PlaySound2D(GetWorld(), LiftSound);
 }
 
@@ -280,13 +280,15 @@ void ATelekineticActor::DetectMiniProps()
 		GetWorld(),
 		GetActorLocation(),
 		GetActorLocation(),
-		AttractionField->GetScaledSphereRadius(),
+		AttractionField->GetUnscaledSphereRadius(),
 		ObjectTypes,
 		false,
 		ActorsToIgnore,
 		EDrawDebugTrace::None,
 		HitResults,
-		true
+		true,
+		FLinearColor::Blue,
+		FLinearColor::Green
 	);
 
 	// Add any hit mini props to the attracted mini props array
